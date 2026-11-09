@@ -1,0 +1,55 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+    function me() { return get(/databases/$(db)/documents/users/$(request.auth.uid)).data; }
+    function signed() { return request.auth != null && exists(/databases/$(db)/documents/users/$(request.auth.uid)); }
+    function staffish() { return signed() && me().role != 'employee'; }
+    function isAdmin() { return signed() && me().role == 'admin'; }
+    function isMgr() { return signed() && (me().role == 'admin' || me().role == 'manager'); }
+    function isSup() { return signed() && me().role == 'supervisor'; }
+    function mine(id) { return signed() && me().empId == id; }
+    function myProj(p) { return isSup() && p in me().projectNames; }
+
+    match /users/{u} {
+      allow read: if request.auth != null && (request.auth.uid == u || staffish());
+      allow create: if isAdmin() || (request.auth != null && request.auth.uid == u && request.resource.data.role == 'admin' && !exists(/databases/$(db)/documents/settings/init));
+      allow update, delete: if isAdmin();
+    }
+    // ---- Tools ----
+    match /tools/{d} { allow read: if staffish(); allow write: if isMgr(); }
+    match /projects/{d} { allow read: if signed(); allow write: if isMgr(); }
+    match /log/{d} { allow read: if staffish(); allow write: if isMgr(); }
+    match /prices/{d} { allow read, write: if isMgr(); }
+    match /damages/{d} { allow read, write: if isMgr(); }
+    match /requests/{d} {
+      allow read: if staffish();
+      allow create: if staffish() && request.resource.data.by == request.auth.uid;
+      allow update, delete: if isMgr();
+    }
+    // ---- HR (Admin) + Attendance (Supervisor: শুধু নিজের project) ----
+    match /settings/{d} {
+      allow read: if signed();
+      allow create: if (d == 'init' && request.auth != null && !exists(/databases/$(db)/documents/settings/init)) || isAdmin();
+      allow update, delete: if isAdmin();
+    }
+    match /employees/{e} {
+      allow read: if isAdmin() || mine(e) || myProj(resource.data.project);
+      allow write: if isAdmin();
+    }
+    match /att/{d} {
+      allow read: if isAdmin() || (signed() && resource.data.empId == me().empId) || myProj(resource.data.project);
+      allow create, update: if isAdmin() || myProj(request.resource.data.project);
+      allow delete: if isAdmin() || myProj(resource.data.project);
+    }
+    match /payroll/{d} {
+      allow read: if isAdmin() || (signed() && resource.data.empId == me().empId);
+      allow write: if isAdmin();
+    }
+    match /leaves/{d} {
+      allow read: if isAdmin() || (signed() && resource.data.empId == me().empId);
+      allow create: if isAdmin() || (signed() && request.resource.data.empId == me().empId && request.resource.data.status == 'pending');
+      allow update, delete: if isAdmin();
+    }
+    match /notices/{d} { allow read: if signed(); allow write: if isAdmin(); }
+  }
+}
