@@ -3,7 +3,8 @@ service cloud.firestore {
   match /databases/{db}/documents {
     function me() { return get(/databases/$(db)/documents/users/$(request.auth.uid)).data; }
     function signed() { return request.auth != null && exists(/databases/$(db)/documents/users/$(request.auth.uid)); }
-    function staffish() { return signed() && me().role != 'employee'; }
+    function staffish() { return signed() && me().role != 'employee' && me().role != 'accounts'; }
+    function isAcc() { return signed() && (me().role == 'admin' || me().role == 'accounts'); }
     function isAdmin() { return signed() && me().role == 'admin'; }
     function isMgr() { return signed() && (me().role == 'admin' || me().role == 'manager'); }
     function isSup() { return signed() && me().role == 'supervisor'; }
@@ -50,6 +51,8 @@ service cloud.firestore {
       allow create: if isAdmin() || (signed() && request.resource.data.empId == me().empId && request.resource.data.status == 'pending');
       allow update, delete: if isAdmin();
     }
+    // ---- Project Payments (Admin + Accounts only) ----
+    match /projectPayments/{d} { allow read, write: if isAcc(); }
     match /notices/{d} { allow read: if signed(); allow write: if isAdmin(); }
   }
 }
