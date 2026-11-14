@@ -13,3 +13,8 @@ Role অনুযায়ী অ্যাক্সেস
 Deploy: firebase deploy --only firestore:rules,hosting
 - Employee dashboard header e camera button: নিজের profile photo upload/change (auto 256x256 resize, Firestore 'photos' collection)
 - Admin/HR (employee ছাড়া সব role) যে কোনো employee এর photo দেখতে পারবে; Employee View তে photo দেখায় + "Photo" button দিয়ে admin ও বদলাতে পারে
+
+---- Update: Photo approval + project-wise Tk ----
+Deploy: firebase deploy --only firestore:rules,hosting
+- Employee photo upload এখন "pending" হয়; Admin approve করলে তবেই profile এ live হয় (Employees page এর উপরে অথবা Employee View তে Approve/Reject)
+- Employee dashboard ও Admin Employee View এর Project-wise Work এ Day pay / OT pay / Total Tk দেখায়

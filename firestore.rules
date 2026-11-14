@@ -51,10 +51,14 @@ service cloud.firestore {
       allow create: if isAdmin() || (signed() && request.resource.data.empId == me().empId && request.resource.data.status == 'pending');
       allow update, delete: if isAdmin();
     }
-    // ---- Profile photos: employee uploads own; all non-employee roles (Admin/HR/staff) can view ----
+    // ---- Profile photos: live photo changed by Admin only; employees send a request (photoReq) that Admin approves ----
     match /photos/{d} {
       allow read: if signed() && (me().role != 'employee' || mine(d));
-      allow create, update: if isAdmin() || (mine(d) && request.resource.data.empId == d && request.resource.data.data.size() < 150000);
+      allow create, update, delete: if isAdmin();
+    }
+    match /photoReq/{d} {
+      allow read: if isAdmin() || mine(d);
+      allow create, update: if isAdmin() || (mine(d) && request.resource.data.empId == d && request.resource.data.status == 'pending' && request.resource.data.data.size() < 150000);
       allow delete: if isAdmin();
     }
     // ---- Employee Loan (Admin + Accounts give loans; employee sees only own) ----
