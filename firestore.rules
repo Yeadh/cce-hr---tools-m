@@ -34,7 +34,7 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
     match /employees/{e} {
-      allow read: if isAdmin() || mine(e) || myProj(resource.data.project);
+      allow read: if isAcc() || mine(e) || myProj(resource.data.project);
       allow write: if isAdmin();
     }
     match /att/{d} {
@@ -51,8 +51,26 @@ service cloud.firestore {
       allow create: if isAdmin() || (signed() && request.resource.data.empId == me().empId && request.resource.data.status == 'pending');
       allow update, delete: if isAdmin();
     }
-    // ---- Project Payments (Admin + Accounts only) ----
+    // ---- Profile photos: employee uploads own; all non-employee roles (Admin/HR/staff) can view ----
+    match /photos/{d} {
+      allow read: if signed() && (me().role != 'employee' || mine(d));
+      allow create, update: if isAdmin() || (mine(d) && request.resource.data.empId == d && request.resource.data.data.size() < 150000);
+      allow delete: if isAdmin();
+    }
+    // ---- Employee Loan (Admin + Accounts give loans; employee sees only own) ----
+    match /loans/{d} {
+      allow read: if isAcc() || (signed() && resource.data.empId == me().empId);
+      allow write: if isAcc();
+    }
+    // installment deducted per month (written when Admin saves Payroll)
+    match /loanRepay/{d} {
+      allow read: if isAcc() || (signed() && resource.data.empId == me().empId);
+      allow write: if isAdmin();
+    }
+    // ---- (old) Project Payments ----
     match /projectPayments/{d} { allow read, write: if isAcc(); }
+    match /projectBudgets/{d} { allow read, write: if isAcc(); }
+    match /projectSalary/{d} { allow read: if isAcc(); allow write: if isAdmin(); }
     match /notices/{d} { allow read: if signed(); allow write: if isAdmin(); }
   }
 }
